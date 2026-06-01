@@ -2,9 +2,11 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QLabel>
-#include <QPushButton>
-#include "customimage.h" // 커스텀 이미지 클래스 포함
+#include "termproject.h" // 내 이미지 처리 클래스 헤더 포함
+
+QT_BEGIN_NAMESPACE
+namespace Ui { class MainWindow; }
+QT_END_NAMESPACE
 
 class MainWindow : public QMainWindow
 {
@@ -15,15 +17,18 @@ public:
     ~MainWindow();
 
 private slots:
-    void onProcessButtonClicked(); // 버튼 클릭 시 자체 C++ 클래스 제어
+    // UI에서 추가한 버튼들의 클릭 이벤트 슬롯 함수들
+    void on_btnBinarize_clicked(); // 이진화 버튼
+    void on_btnInvert_clicked();   // 색상 반전 버튼
+    void on_btnFlipLR_clicked();   // 좌우 반전 버튼
+    void on_btnFlipUD_clicked();   // 상하 반전 버튼
+    void on_btnSave_clicked();     // 결과 저장 버튼
 
 private:
-    QLabel *imageLabel;
-    QPushButton *processButton;
-    
-    CustomImage myCppImage; // 순수 C++ 이미지 클래스 객체
-    
-    void displayCustomImage(); // CustomImage를 QImage로 변환해 화면에 띄우는 함수
+    Ui::MainWindow *ui;
+    termproject *myTermObject = nullptr; // 영상처리 객체 포인터
+
+    void displayImage(); // 픽셀 데이터를 라벨 화면에 새로고침해 주는 함수
 };
 
 #endif // MAINWINDOW_H
