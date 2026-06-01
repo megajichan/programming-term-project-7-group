@@ -1,0 +1,105 @@
+#include "termproject.h"
+#include <iostream>
+#include <fstream>
+#include <cstdio>
+#include <QImage>
+using namespace std;
+
+// 1-1. 기존 std::string 생성자
+termproject::termproject(QString qFname) {
+    QImage img(qFname);
+    if (img.isNull()) {
+        cout << "파일을 열 수 없습니다." << endl;
+        return;
+    }
+
+    // 흑백으로 변환
+    img = img.convertToFormat(QImage::Format_Grayscale8);
+
+    cols = img.width();
+    rows = img.height();
+
+    pixelValues = new unsigned char[rows * cols];
+    pixelProcessed = new unsigned char[rows * cols];
+
+    for (int y = 0; y < rows; y++) {
+        for (int x = 0; x < cols; x++) {
+            pixelValues[y * cols + x] = img.bits()[y * img.bytesPerLine() + x];
+        }
+    }
+
+    for (int i = 0; i < rows * cols; i++) {
+        pixelProcessed[i] = pixelValues[i];
+    }
+
+    cout << "이미지 로드 성공! 크기: " << cols << " x " << rows << endl;
+}
+
+// 1-2. QT QString 연동용 생성자
+
+
+// 2. 영상 처리 함수
+int termproject::imageProc(int Mode) {
+    int totalPixels = rows * cols;
+
+    if (pixelValues == nullptr || pixelProcessed == nullptr) return -1;
+
+    // Mode 0, 1: 1차원 루프
+    if (Mode == 0 || Mode == 1) {
+        for (int i = 0; i < totalPixels; i++) {
+            if (Mode == 0) {
+                // Mode 0: 이진화 (100 기준)
+                if (pixelValues[i] > 100) pixelProcessed[i] = 255;
+                else pixelProcessed[i] = 0;
+            }
+            else if (Mode == 1) {
+                // Mode 1: 색상 반전
+                pixelProcessed[i] = 255 - pixelValues[i];
+            }
+        }
+    }
+    // Mode 2, 3: 2차원 루프
+    else if (Mode == 2) {
+        // Mode 2: 좌우 반전
+        for (int y = 0; y < rows; y++) {
+            for (int x = 0; x < cols; x++) {
+                int original_idx = y * cols + x;
+                int flipped_idx = y * cols + (cols - 1 - x);
+                pixelProcessed[flipped_idx] = pixelValues[original_idx];
+            }
+        }
+    }
+    else if (Mode == 3) {
+        // Mode 3: 상하 반전
+        for (int y = 0; y < rows; y++) {
+            for (int x = 0; x < cols; x++) {
+                int original_idx = y * cols + x;
+                int flipped_idx = (rows - 1 - y) * cols + x;
+                pixelProcessed[flipped_idx] = pixelValues[original_idx];
+            }
+        }
+    }
+    return 0;
+}
+
+// 3-1. 기존 파일 저장 함수
+int termproject::imageWrite(string fname) {
+    ofstream fout(fname, ios::out | ios::binary);
+    if (!fout.is_open()) return -1;
+
+    fout << "P5\n" << cols << " " << rows << "\n255\n";
+    fout.write(reinterpret_cast<const char*>(pixelProcessed), rows * cols * sizeof(unsigned char));
+    fout.close();
+    return 0;
+}
+
+// 3-2. QT QString 연동용 저장 함수
+int termproject::imageWrite(QString qFname) {
+    return imageWrite(std::string(qFname.toLocal8Bit().constData()));
+}
+
+// 4. 소멸자 (닫는 괄호 추가 완료)
+termproject::~termproject(void) {
+    if (pixelValues != nullptr) delete[] pixelValues;
+    if (pixelProcessed != nullptr) delete[] pixelProcessed;
+}
