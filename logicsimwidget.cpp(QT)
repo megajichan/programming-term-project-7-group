@@ -1,0 +1,263 @@
+#include "logicsimwidget.h"   // 이 파일의 헤더 포함
+#include <QPainter>           // 직접 그리기(paintEvent)에 필요한 클래스
+#include <QVBoxLayout>        // 세로 방향 레이아웃
+#include <QHBoxLayout>        // 가로 방향 레이아웃
+#include <QGroupBox>          // 그룹 박스 (테두리+제목 있는 컨테이너)
+#include <QFont>              // 폰트 설정
+#include <QtMath>             // qRound, qMax 등 수학 함수
+
+// ═══════════════════════════════════════════════
+//  WaveformWidget 구현
+// ═══════════════════════════════════════════════
+WaveformWidget::WaveformWidget(QWidget *parent) : QWidget(parent) {  // 부모 클래스 생성자 호출
+    setMinimumSize(500, 240);                                         // 위젯 최소 크기 설정
+    sigA = sigB = sigRaw = sigOut = QVector<int>(TICKS, 0);          // 모든 신호 배열을 0으로 초기화
+}
+
+void WaveformWidget::setData(const QVector<int>& a, const QVector<int>& b,
+                             const QVector<int>& raw, const QVector<int>& out,
+                             int gt, int dt) {
+    sigA = a;          // 입력A 신호 저장
+    sigB = b;          // 입력B 신호 저장
+    sigRaw = raw;      // 지연 없는 이상적 출력 저장
+    sigOut = out;      // 전파지연 적용된 실제 출력 저장
+    gateType   = gt;   // 게이트 종류 저장
+    delayTicks = dt;   // 지연 틱 수 저장
+    update();          // 화면 다시 그리기 요청 (paintEvent 호출됨)
+}
+
+void WaveformWidget::paintEvent(QPaintEvent*) {
+    QPainter p(this);                              // 이 위젯에 그림을 그릴 QPainter 생성
+    p.setRenderHint(QPainter::Antialiasing);       // 계단 현상 방지 (안티앨리어싱) 활성화
+
+    const int W          = width();                // 현재 위젯 전체 너비
+    const int H          = height();               // 현재 위젯 전체 높이
+    const int LABEL_W    = 60;                     // 왼쪽 신호 이름 레이블 너비
+    const int AXIS_H     = 32;                     // 아래쪽 시간 축 높이
+    const int WAVE_AREA_H = H - AXIS_H;           // 파형이 그려지는 실제 세로 영역
+
+    p.fillRect(rect(), QColor(28, 28, 32));        // 배경을 어두운 색으로 채움
+
+    // 그릴 행(신호) 구성
+    struct Row { QString name; const QVector<int>* sig; QColor color; }; // 행 정보 구조체
+    QVector<Row> rows;                                                     // 행 목록
+    rows.append({"A",    &sigA,   QColor(72,  200, 110)}); // 입력A: 초록색
+    if (gateType != 2)                                        // NOT 게이트가 아닐 때만 B 추가
+        rows.append({"B", &sigB,  QColor(255, 140,  70)}); // 입력B: 주황색
+
+    // 게이트 종류에 따라 이상적 출력 이름 결정
+    QString rawName = (gateType == 0) ? "AND*" : (gateType == 1) ? "OR*" : "NOT*";
+    rows.append({rawName, &sigRaw, QColor(140, 140, 140)}); // 이상적 출력: 회색
+    rows.append({"Y",    &sigOut, QColor( 70, 155, 255)}); // 지연된 실제 출력: 파란색
+
+    const int    n  = rows.size();                          // 총 행 수
+    const int    rowH = WAVE_AREA_H / n;                   // 한 행의 세로 높이
+    const double tw   = (double)(W - LABEL_W - 8) / TICKS; // 한 틱의 가로 픽셀 너비
+
+    // 세로 눈금선 그리기
+    p.setPen(QPen(QColor(55, 55, 60), 1));          // 어두운 회색 펜
+    for (int i = 0; i <= TICKS; i++) {              // 각 틱마다
+        int x = LABEL_W + (int)(i * tw);            // x 좌표 계산
+        p.drawLine(x, 0, x, WAVE_AREA_H);           // 위에서 아래로 세로선 그림
+    }
+
+    // 전파지연 구간 강조 표시
+    if (delayTicks > 0 && delayTicks <= TICKS) {         // 지연이 있을 때만
+        int dx = LABEL_W + (int)(delayTicks * tw);        // 지연 끝 x 좌표
+        p.fillRect(LABEL_W, 0, dx - LABEL_W, WAVE_AREA_H,
+                   QColor(70, 155, 255, 20));             // 지연 구간 반투명 파란색으로 채움
+        p.setPen(QPen(QColor(70, 155, 255, 100), 1, Qt::DashLine)); // 점선 파란 펜
+        p.drawLine(dx, 0, dx, WAVE_AREA_H);              // 지연 끝 지점에 세로 점선
+    }
+
+    // 각 신호 행의 파형 그리기
+    for (int r = 0; r < n; r++) {
+        int midY = rowH * r + rowH / 2;             // 이 행의 세로 중앙 y 좌표
+        int yHi  = midY - rowH * 30 / 100;          // HIGH(1) 일 때 y 좌표 (위쪽)
+        int yLo  = midY + rowH * 30 / 100;          // LOW(0) 일 때 y 좌표 (아래쪽)
+
+        // 신호 이름 레이블 출력
+        p.setPen(rows[r].color);                     // 해당 신호 색상으로 펜 설정
+        p.setFont(QFont("Courier New", 9, QFont::Bold)); // 고정폭 굵은 폰트
+        p.drawText(0, midY - 10, LABEL_W - 6, 20,
+                   Qt::AlignRight | Qt::AlignVCenter, rows[r].name); // 오른쪽 정렬로 이름 출력
+
+        // 파형선 그리기
+        p.setPen(QPen(rows[r].color, 2));            // 해당 색상, 두께 2의 펜
+        const QVector<int>& sig = *rows[r].sig;      // 신호 배열 참조
+        for (int i = 0; i < TICKS; i++) {
+            int x  = LABEL_W + (int)(i * tw);        // 현재 틱 시작 x
+            int xn = LABEL_W + (int)((i + 1) * tw);  // 다음 틱 시작 x
+            int y  = sig[i] ? yHi : yLo;             // 신호값에 따라 y 결정 (1=위, 0=아래)
+            p.drawLine(x, y, xn, y);                  // 수평선 그림
+            if (i + 1 < TICKS && sig[i] != sig[i + 1]) { // 다음 틱에서 값이 바뀌면
+                int yn = sig[i + 1] ? yHi : yLo;     // 다음 y 좌표
+                p.drawLine(xn, y, xn, yn);            // 에지(수직 전환선) 그림
+            }
+        }
+    }
+
+    // 시간 축 그리기
+    p.setPen(QPen(QColor(80, 80, 90), 1));           // 회색 펜
+    p.drawLine(LABEL_W, WAVE_AREA_H, W, WAVE_AREA_H); // 시간 축 가로선
+    p.setPen(QColor(110, 110, 120));                  // 눈금 텍스트 색상
+    p.setFont(QFont("Courier New", 8));               // 작은 고정폭 폰트
+    for (int i = 0; i <= TICKS; i++) {
+        int x = LABEL_W + (int)(i * tw);             // 각 틱 x 좌표
+        p.drawLine(x, WAVE_AREA_H, x, WAVE_AREA_H + 4); // 눈금 세로선
+        if (i % 5 == 0) {                             // 5틱마다 시간 숫자 표시
+            QString t = QString::number(i * TICK_NS) + "ns"; // "0ns", "5ns", ...
+            p.drawText(x - 18, WAVE_AREA_H + 6, 36, 18, Qt::AlignCenter, t); // 숫자 출력
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════
+//  LogicSimWidget 구현
+// ═══════════════════════════════════════════════
+LogicSimWidget::LogicSimWidget(QWidget *parent) : QWidget(parent) {
+    sigA = QVector<int>(TICKS, 0);   // 입력A 신호 배열 TICKS 크기로 0 초기화
+    sigB = QVector<int>(TICKS, 0);   // 입력B 신호 배열 TICKS 크기로 0 초기화
+
+    // 기본 신호 패턴 (40칸)
+    int defA[] = {0,0,1,1,0,0,1,1,1,0,0,1,0,0,1,1,0,1,0,0,
+                  0,0,1,1,0,0,1,1,1,0,0,1,0,0,1,1,0,1,0,0}; // 입력A 기본값
+    int defB[] = {0,1,1,0,0,1,1,0,1,1,0,0,0,1,1,0,1,0,1,0,
+                  0,1,1,0,0,1,1,0,1,1,0,0,0,1,1,0,1,0,1,0}; // 입력B 기본값
+
+    for (int i = 0; i < TICKS; i++) {  // 각 틱마다
+        sigA[i] = defA[i];             // A 기본값 복사
+        sigB[i] = defB[i];             // B 기본값 복사
+    }
+
+    buildUI();      // UI 위젯 생성
+    onSimulate();   // 초기 시뮬레이션 실행
+}
+
+void LogicSimWidget::buildUI() {
+    auto *main = new QVBoxLayout(this);           // 전체를 세로로 쌓는 레이아웃
+    main->setContentsMargins(12, 12, 12, 12);     // 외부 여백
+    main->setSpacing(8);                          // 위젯 간 간격
+
+    // ── 컨트롤 행 ──────────────────────────────
+    auto *ctrlRow = new QHBoxLayout();            // 가로 방향 컨트롤 행
+
+    ctrlRow->addWidget(new QLabel("게이트:"));    // "게이트:" 텍스트 레이블 추가
+    gateCombo = new QComboBox();                  // 게이트 선택 드롭다운 생성
+    gateCombo->addItems({"AND", "OR", "NOT"});    // 선택 항목 추가
+    gateCombo->setFixedWidth(80);                 // 너비 고정
+    connect(gateCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &LogicSimWidget::onGateChanged); // 선택 변경 시 슬롯 연결
+    ctrlRow->addWidget(gateCombo);                // 컨트롤 행에 추가
+
+    ctrlRow->addSpacing(16);                      // 간격
+    ctrlRow->addWidget(new QLabel("전파지연 (ns):")); // 레이블 추가
+    delaySpinBox = new QSpinBox();                // 지연 시간 입력 스핀박스 생성
+    delaySpinBox->setRange(0, 39);                // 0~39ns 범위
+    delaySpinBox->setValue(10);                   // 기본값 10ns
+    delaySpinBox->setSingleStep(1);               // 1ns 단위로 증감
+    ctrlRow->addWidget(delaySpinBox);             // 컨트롤 행에 추가
+
+    ctrlRow->addSpacing(16);                      // 간격
+    auto *runBtn = new QPushButton("▶  시뮬레이션 실행"); // 실행 버튼 생성
+    runBtn->setStyleSheet(                        // 버튼 스타일 설정 (파란색)
+        "QPushButton { background:#1a5fa5; color:white; border-radius:4px;"
+        "              padding:6px 18px; font-weight:bold; }"
+        "QPushButton:hover { background:#2470b8; }");
+    connect(runBtn, &QPushButton::clicked, this, &LogicSimWidget::onSimulate); // 클릭 시 슬롯 연결
+    ctrlRow->addWidget(runBtn);                   // 컨트롤 행에 추가
+    ctrlRow->addStretch();                        // 남은 공간 자동으로 채움
+
+    main->addLayout(ctrlRow);                     // 전체 레이아웃에 컨트롤 행 추가
+
+    // ── 입력 A 토글 버튼 ─────────────────────
+    auto *grpA = new QGroupBox("입력 A  (버튼 클릭 → 0/1 토글)"); // 그룹박스 생성
+    auto *rowA = new QHBoxLayout(grpA);           // 그룹박스 내부 가로 레이아웃
+    rowA->setSpacing(2);                          // 버튼 간 간격 좁게
+    btnA.resize(TICKS);                           // 버튼 배열 크기 설정
+    for (int i = 0; i < TICKS; i++) {
+        btnA[i] = new QPushButton(QString::number(i * TICK_NS)); // 버튼 텍스트 = 시간(ns)
+        btnA[i]->setFixedSize(40, 28);            // 버튼 크기 고정
+        btnA[i]->setCheckable(true);              // 토글 가능하게 설정
+        connect(btnA[i], &QPushButton::clicked, this,
+                [this, i]() { onToggleA(i); });   // 클릭 시 해당 틱 토글 슬롯 연결
+        rowA->addWidget(btnA[i]);                 // 레이아웃에 버튼 추가
+    }
+    main->addWidget(grpA);                        // 전체 레이아웃에 A 그룹 추가
+
+    // ── 입력 B 토글 버튼 ─────────────────────
+    rowBGroup = new QGroupBox("입력 B  (버튼 클릭 → 0/1 토글)"); // 그룹박스 생성
+    auto *rowBL = new QHBoxLayout(rowBGroup);     // 그룹박스 내부 가로 레이아웃
+    rowBL->setSpacing(2);                         // 버튼 간 간격 좁게
+    btnB.resize(TICKS);                           // 버튼 배열 크기 설정
+    for (int i = 0; i < TICKS; i++) {
+        btnB[i] = new QPushButton(QString::number(i * TICK_NS)); // 버튼 텍스트 = 시간(ns)
+        btnB[i]->setFixedSize(40, 28);            // 버튼 크기 고정
+        btnB[i]->setCheckable(true);              // 토글 가능하게 설정
+        connect(btnB[i], &QPushButton::clicked, this,
+                [this, i]() { onToggleB(i); });   // 클릭 시 해당 틱 토글 슬롯 연결
+        rowBL->addWidget(btnB[i]);                // 레이아웃에 버튼 추가
+    }
+    main->addWidget(rowBGroup);                   // 전체 레이아웃에 B 그룹 추가
+
+    // ── 파형 위젯 ──────────────────────────
+    waveWidget = new WaveformWidget();            // 파형 표시 위젯 생성
+    main->addWidget(waveWidget, 1);               // 전체 레이아웃에 추가 (stretch=1 로 공간 최대 확보)
+
+    updateToggleButtons();                        // 초기 버튼 색상 업데이트
+}
+
+void LogicSimWidget::updateToggleButtons() {
+    for (int i = 0; i < TICKS; i++) {
+        btnA[i]->setChecked(sigA[i]);             // 신호값에 따라 버튼 체크 상태 설정
+        btnA[i]->setStyleSheet(sigA[i]            // 신호가 1이면 초록, 0이면 기본색
+                                   ? "background:#2a7a3a; color:white; border-radius:3px;"
+                                   : "border-radius:3px;");
+        btnB[i]->setChecked(sigB[i]);             // 신호값에 따라 버튼 체크 상태 설정
+        btnB[i]->setStyleSheet(sigB[i]            // 신호가 1이면 주황, 0이면 기본색
+                                   ? "background:#a04018; color:white; border-radius:3px;"
+                                   : "border-radius:3px;");
+    }
+}
+
+void LogicSimWidget::onToggleA(int tick) {
+    sigA[tick] = 1 - sigA[tick];   // 해당 틱의 A 신호를 0→1 또는 1→0 으로 반전
+    updateToggleButtons();          // 버튼 색상 갱신
+    onSimulate();                   // 변경된 신호로 즉시 재시뮬레이션
+}
+
+void LogicSimWidget::onToggleB(int tick) {
+    sigB[tick] = 1 - sigB[tick];   // 해당 틱의 B 신호를 0→1 또는 1→0 으로 반전
+    updateToggleButtons();          // 버튼 색상 갱신
+    onSimulate();                   // 변경된 신호로 즉시 재시뮬레이션
+}
+
+void LogicSimWidget::onGateChanged(int idx) {
+    gateType = idx;                          // 선택된 게이트 종류 저장
+    rowBGroup->setVisible(gateType != 2);    // NOT 게이트이면 입력B 행 숨김
+    onSimulate();                            // 게이트 변경 후 즉시 재시뮬레이션
+}
+
+QVector<int> LogicSimWidget::computeDelayed(const QVector<int>& raw, int dt) {
+    QVector<int> out(TICKS, 0);             // 출력 배열 0으로 초기화
+    for (int i = 0; i < TICKS; i++) {
+        int src = i - dt;                   // 지연만큼 앞의 틱에서 값을 가져옴
+        out[i] = (src >= 0) ? raw[src] : 0; // 지연 전 구간은 0 (신호 미도달)
+    }
+    return out;                             // 지연 적용된 출력 반환
+}
+
+void LogicSimWidget::onSimulate() {
+    int delayNs    = delaySpinBox->value();                           // 입력된 지연 시간(ns)
+    int delayTicks = qMax(0, (int)qRound((double)delayNs / TICK_NS)); // ns를 틱으로 변환
+
+    QVector<int> raw(TICKS);               // 지연 없는 이상적 출력 배열
+    for (int i = 0; i < TICKS; i++) {
+        if      (gateType == 0) raw[i] = sigA[i] & sigB[i]; // AND: 둘 다 1일 때만 1
+        else if (gateType == 1) raw[i] = sigA[i] | sigB[i]; // OR:  하나라도 1이면 1
+        else                    raw[i] = 1 - sigA[i];        // NOT: A 반전
+    }
+
+    QVector<int> out = computeDelayed(raw, delayTicks); // 전파지연 적용
+    waveWidget->setData(sigA, sigB, raw, out, gateType, delayTicks); // 파형 위젯에 데이터 전달
+}
