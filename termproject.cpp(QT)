@@ -1,33 +1,34 @@
-#include "termproject.h"
-#include <iostream>
-#include <fstream>
-#include <cstdio>
-#include <QImage>
-using namespace std;
+#include "termproject.h"          // termproject 헤더 포함
+#include <iostream>               // cout 사용을 위해 포함
+#include <fstream>                // 파일 입출력(ofstream) 사용을 위해 포함
+#include <cstdio>                 // C 표준 입출력 포함
+#include <QImage>                 // Qt 이미지 클래스 포함
+using namespace std;              // std:: 생략을 위한 네임스페이스 선언
 
-// 1-1. 기존 std::string 생성자
+// Qt QString 경로로 이미지를 로드하는 생성자
 termproject::termproject(QString qFname) {
-    QImage img(qFname);
-    if (img.isNull()) {
+    QImage img(qFname);           // Qt를 이용해 이미지 파일 로드
+    if (img.isNull()) {           // 로드 실패 시 (파일 없음 또는 경로 오류)
         cout << "파일을 열 수 없습니다." << endl;
-        return;
+        return;                   // 생성자 종료 (픽셀 배열은 nullptr 유지)
     }
 
-    // 흑백으로 변환
-    img = img.convertToFormat(QImage::Format_Grayscale8);
+    img = img.convertToFormat(QImage::Format_Grayscale8); // 이미지를 8비트 흑백으로 변환
+    cols = img.width();           // 가로 픽셀 수 저장
+    rows = img.height();          // 세로 픽셀 수 저장
 
-    cols = img.width();
-    rows = img.height();
+    pixelValues    = new unsigned char[rows * cols]; // 원본 픽셀 배열 동적 할당
+    pixelProcessed = new unsigned char[rows * cols]; // 처리용 픽셀 배열 동적 할당
 
-    pixelValues = new unsigned char[rows * cols];
-    pixelProcessed = new unsigned char[rows * cols];
-
+    // QImage에서 픽셀 값을 한 픽셀씩 원본 배열에 복사
     for (int y = 0; y < rows; y++) {
         for (int x = 0; x < cols; x++) {
+            // bytesPerLine(): Qt가 내부적으로 정렬한 한 줄 바이트 수 (실제 cols와 다를 수 있음)
             pixelValues[y * cols + x] = img.bits()[y * img.bytesPerLine() + x];
         }
     }
 
+    // 처리용 배열에 원본 데이터를 그대로 복사 (초기 상태 = 원본)
     for (int i = 0; i < rows * cols; i++) {
         pixelProcessed[i] = pixelValues[i];
     }
@@ -35,71 +36,70 @@ termproject::termproject(QString qFname) {
     cout << "이미지 로드 성공! 크기: " << cols << " x " << rows << endl;
 }
 
-// 1-2. QT QString 연동용 생성자
-
-
-// 2. 영상 처리 함수
+// 이미지 처리 함수 (Mode에 따라 처리 방식 결정)
 int termproject::imageProc(int Mode) {
-    int totalPixels = rows * cols;
+    int totalPixels = rows * cols;                        // 전체 픽셀 수
+    if (pixelValues == nullptr || pixelProcessed == nullptr) return -1; // 배열 미초기화 시 오류 반환
 
-    if (pixelValues == nullptr || pixelProcessed == nullptr) return -1;
-
-    // Mode 0, 1: 1차원 루프
+    // Mode 0, 1: 픽셀 위치와 무관하게 1차원 순서로 처리
     if (Mode == 0 || Mode == 1) {
         for (int i = 0; i < totalPixels; i++) {
             if (Mode == 0) {
-                // Mode 0: 이진화 (100 기준)
+                // Mode 0: 이진화 - 픽셀값이 100 초과이면 흰색(255), 이하면 검정(0)
                 if (pixelValues[i] > 100) pixelProcessed[i] = 255;
-                else pixelProcessed[i] = 0;
+                else                      pixelProcessed[i] = 0;
             }
             else if (Mode == 1) {
-                // Mode 1: 색상 반전
+                // Mode 1: 색상 반전 - 255에서 원본값을 빼서 반전
                 pixelProcessed[i] = 255 - pixelValues[i];
             }
         }
     }
-    // Mode 2, 3: 2차원 루프
+    // Mode 2, 3: 픽셀 위치(x, y)가 필요한 2차원 처리
     else if (Mode == 2) {
-        // Mode 2: 좌우 반전
+        // Mode 2: 좌우 반전 - x 좌표를 (cols-1-x)로 뒤집어 저장
         for (int y = 0; y < rows; y++) {
             for (int x = 0; x < cols; x++) {
-                int original_idx = y * cols + x;
-                int flipped_idx = y * cols + (cols - 1 - x);
+                int original_idx = y * cols + x;              // 원본 픽셀 인덱스
+                int flipped_idx  = y * cols + (cols - 1 - x); // 좌우 반전된 인덱스
                 pixelProcessed[flipped_idx] = pixelValues[original_idx];
             }
         }
     }
     else if (Mode == 3) {
-        // Mode 3: 상하 반전
+        // Mode 3: 상하 반전 - y 좌표를 (rows-1-y)로 뒤집어 저장
         for (int y = 0; y < rows; y++) {
             for (int x = 0; x < cols; x++) {
-                int original_idx = y * cols + x;
-                int flipped_idx = (rows - 1 - y) * cols + x;
+                int original_idx = y * cols + x;              // 원본 픽셀 인덱스
+                int flipped_idx  = (rows - 1 - y) * cols + x; // 상하 반전된 인덱스
                 pixelProcessed[flipped_idx] = pixelValues[original_idx];
             }
         }
     }
-    return 0;
+    return 0; // 처리 성공
 }
 
-// 3-1. 기존 파일 저장 함수
+// 처리된 이미지를 PGM 파일로 저장 (std::string 경로)
 int termproject::imageWrite(string fname) {
-    ofstream fout(fname, ios::out | ios::binary);
-    if (!fout.is_open()) return -1;
+    ofstream fout(fname, ios::out | ios::binary); // 바이너리 쓰기 모드로 파일 열기
+    if (!fout.is_open()) return -1;               // 파일 열기 실패 시 오류 반환
 
+    // PGM P5 포맷 헤더 작성 (매직넘버, 가로 세로, 최대값)
     fout << "P5\n" << cols << " " << rows << "\n255\n";
+
+    // 처리된 픽셀 배열을 바이너리로 한번에 저장
     fout.write(reinterpret_cast<const char*>(pixelProcessed), rows * cols * sizeof(unsigned char));
-    fout.close();
-    return 0;
+    fout.close(); // 파일 닫기
+    return 0;     // 저장 성공
 }
 
-// 3-2. QT QString 연동용 저장 함수
+// Qt QString 경로를 std::string으로 변환 후 저장 함수 호출
 int termproject::imageWrite(QString qFname) {
-    return imageWrite(std::string(qFname.toLocal8Bit().constData()));
+    return imageWrite(std::string(qFname.toLocal8Bit().constData())); // 인코딩 변환 후 위 함수 재사용
 }
 
-// 4. 소멸자 (닫는 괄호 추가 완료)
+// 소멸자: 동적 할당한 픽셀 배열 해제
 termproject::~termproject(void) {
-    if (pixelValues != nullptr) delete[] pixelValues;
-    if (pixelProcessed != nullptr) delete[] pixelProcessed;
+    if (pixelValues    != nullptr) delete[] pixelValues;    // 원본 배열 해제
+    if (pixelProcessed != nullptr) delete[] pixelProcessed; // 처리 배열 해제
 }
