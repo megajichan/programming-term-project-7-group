@@ -1,30 +1,30 @@
-#ifndef TERMPROJECT_H
-#define TERMPROJECT_H
+#ifndef TERMPROJECT_H             // 헤더 중복 포함 방지 시작
+#define TERMPROJECT_H             // 매크로 정의
 
-#include <string>
-#include <QString> // QT 연동을 위해 추가
+#include <string>                 // std::string 사용을 위해 포함
+#include <QString>                // Qt 문자열 클래스 포함
 
-class termproject {
+class termproject {               // 이미지 처리 담당 클래스
 private:
-    int cols = 0;
-    int rows = 0;
-    unsigned char* pixelValues = nullptr;
-    unsigned char* pixelProcessed = nullptr;
+    int cols = 0;                          // 이미지 가로 픽셀 수
+    int rows = 0;                          // 이미지 세로 픽셀 수
+    unsigned char* pixelValues    = nullptr; // 원본 픽셀 데이터 배열
+    unsigned char* pixelProcessed = nullptr; // 처리된 픽셀 데이터 배열
 
 public:
-    termproject(std::string fname);
-    termproject(QString qFname); // QT 전용 생성자 오버로딩
-    ~termproject();
+    termproject(std::string fname);  // 파일 경로(std::string)로 이미지 로드하는 생성자
+    termproject(QString qFname);     // 파일 경로(QString)로 이미지 로드하는 Qt 전용 생성자
+    ~termproject();                  // 소멸자, 동적 할당 픽셀 배열 해제
 
-    int imageProc(int Mode);
-    int imageWrite(std::string fname);
-    int imageWrite(QString qFname); // QT 전용 저장 함수 오버로딩
+    int imageProc(int Mode);         // 이미지 처리 함수 (Mode에 따라 다른 처리 수행)
+    int imageWrite(std::string fname); // 처리 결과를 파일로 저장 (std::string 경로)
+    int imageWrite(QString qFname);    // 처리 결과를 파일로 저장 (QString 경로, Qt 전용)
 
-    // QT에서 화면에 그릴 때 사용할 Getter 함수들
-    int getWidth() const { return cols; }
-    int getHeight() const { return rows; }
-    unsigned char* getProcessedData() const { return pixelProcessed; }
-    unsigned char* getOriginalData() const { return pixelValues; }
+    // Qt 화면 출력용 Getter 함수들
+    int getWidth()  const { return cols; }           // 이미지 가로 크기 반환
+    int getHeight() const { return rows; }           // 이미지 세로 크기 반환
+    unsigned char* getProcessedData() const { return pixelProcessed; } // 처리된 픽셀 배열 반환
+    unsigned char* getOriginalData()  const { return pixelValues; }    // 원본 픽셀 배열 반환
 };
 
-#endif // TERMPROJECT_H
+#endif // TERMPROJECT_H           // 헤더 중복 방지 끝
