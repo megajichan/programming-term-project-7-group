@@ -1,11 +1,100 @@
 #include "mainwindow.h"
-
 #include <QApplication>
 
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
+
+    // ── 전자공학(PCB) 느낌 다크 테마 적용 ──────────────────
+    a.setStyleSheet(R"(
+        /* 전체 배경 & 폰트 - 어두운 PCB 색 + 모노스페이스 */
+        QMainWindow, QWidget {
+            background-color: #14181c;
+            color: #c9d6c9;
+            font-family: "Consolas", "Courier New", monospace;
+            font-size: 10pt;
+        }
+
+        /* 버튼 - 회로 트레이스 느낌의 초록색 테두리 */
+        QPushButton {
+            background-color: #1f2a24;
+            color: #5fffb0;
+            border: 1px solid #2f6b4a;
+            border-radius: 3px;
+            padding: 6px 14px;
+            font-weight: 600;
+        }
+        QPushButton:hover {
+            background-color: #28392f;
+            border: 1px solid #5fffb0;
+            color: #aaffd4;
+        }
+        QPushButton:pressed {
+            background-color: #0d130f;
+            border: 1px solid #ffb000;
+            color: #ffb000;
+        }
+        QPushButton:checked {
+            background-color: #2f6b4a;
+            color: #0d130f;
+            border: 1px solid #5fffb0;
+        }
+
+        /* 라벨 */
+        QLabel {
+            color: #9fd8c0;
+            background: transparent;
+        }
+
+        /* 그룹박스 - IC 칩처럼 보이는 테두리 */
+        QGroupBox {
+            border: 1px solid #2f6b4a;
+            border-radius: 4px;
+            margin-top: 10px;
+            padding-top: 8px;
+            color: #5fffb0;
+            font-weight: bold;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            left: 10px;
+            padding: 0 4px;
+            color: #5fffb0;
+        }
+
+        /* 콤보박스 / 스핀박스 */
+        QComboBox, QSpinBox {
+            background-color: #1f2a24;
+            color: #c9d6c9;
+            border: 1px solid #2f6b4a;
+            border-radius: 3px;
+            padding: 3px 6px;
+        }
+        QComboBox QAbstractItemView {
+            background-color: #1f2a24;
+            color: #c9d6c9;
+            selection-background-color: #2f6b4a;
+        }
+
+        /* 메뉴바 / 상태바 */
+        QMenuBar, QStatusBar {
+            background-color: #0d1310;
+            color: #5fffb0;
+        }
+
+        /* 스크롤바 */
+        QScrollBar:vertical, QScrollBar:horizontal {
+            background: #14181c;
+            border: none;
+        }
+        QScrollBar::handle {
+            background: #2f6b4a;
+            border-radius: 3px;
+        }
+    )");
+    // ────────────────────────────────────────────────────
+
     MainWindow w;
     w.show();
-    return QApplication::exec();
+    return a.exec();
 }
