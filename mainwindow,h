@@ -1,34 +1,40 @@
-#ifndef MAINWINDOW_H              // 헤더 중복 포함 방지 시작
-#define MAINWINDOW_H              // 매크로 정의
+#ifndef MAINWINDOW_H
+#define MAINWINDOW_H
 
-#include <QMainWindow>            // QMainWindow 기본 클래스 포함
-#include "termproject.h"          // 이미지 처리 클래스 헤더 포함
-#include "logicsimwidget.h"       // 논리회로 시뮬레이터 위젯 헤더 포함
+#include <QMainWindow>
+#include <QPixmap>
+#include "termproject.h"
+#include "logicsimwidget.h"
 
-QT_BEGIN_NAMESPACE                // Qt 네임스페이스 시작
-namespace Ui { class MainWindow; } // Qt Designer가 생성한 UI 클래스 전방 선언
-QT_END_NAMESPACE                  // Qt 네임스페이스 끝
+QT_BEGIN_NAMESPACE
+namespace Ui { class MainWindow; }
+QT_END_NAMESPACE
 
-class MainWindow : public QMainWindow {  // QMainWindow를 상속받는 메인 윈도우 클래스
-    Q_OBJECT                             // Qt 시그널/슬롯 사용을 위한 매크로
+class MainWindow : public QMainWindow
+{
+    Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr); // 생성자, 부모 위젯 포인터 받음
-    ~MainWindow();                         // 소멸자, 동적 할당 메모리 해제
+    MainWindow(QWidget *parent = nullptr);
+    ~MainWindow();
 
 private slots:
-    void on_btnBinarize_clicked(); // 이진화 버튼 클릭 슬롯
-    void on_btnInvert_clicked();   // 색상 반전 버튼 클릭 슬롯
-    void on_btnFlipLR_clicked();   // 좌우 반전 버튼 클릭 슬롯
-    void on_btnFlipUD_clicked();   // 상하 반전 버튼 클릭 슬롯
-    void on_btnSave_clicked();     // 저장 버튼 클릭 슬롯
-    void on_btnLogicSim_clicked(); // 논리회로 시뮬레이터 버튼 클릭 슬롯
+    void on_btnBinarize_clicked();
+    void on_btnInvert_clicked();
+    void on_btnFlipLR_clicked();
+    void on_btnFlipUD_clicked();
+    void on_btnSave_clicked();
+    void on_btnReset_clicked();
+
+protected:
+    void paintEvent(QPaintEvent *event) override;
 
 private:
-    Ui::MainWindow  *ui           = nullptr; // Qt Designer가 생성한 UI 객체 포인터
-    termproject     *myTermObject = nullptr; // 이미지 처리 객체 포인터
-    LogicSimWidget  *simWidget    = nullptr; // 논리회로 시뮬레이터 위젯 포인터
-    void displayImage();                     // 처리된 픽셀 데이터를 화면 라벨에 출력하는 함수
+    Ui::MainWindow  *ui           = nullptr;
+    termproject     *myTermObject = nullptr;
+    LogicSimWidget  *simWidget    = nullptr;
+    QPixmap          bgImage;
+    void displayImage();
 };
 
-#endif // MAINWINDOW_H            // 헤더 중복 방지 끝
+#endif // MAINWINDOW_H
