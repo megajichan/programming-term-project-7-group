@@ -1,67 +1,60 @@
-#ifndef LOGICSIMWIDGET_H          // 헤더 중복 포함 방지 시작
-#define LOGICSIMWIDGET_H          // 매크로 정의
+#ifndef LOGICSIMWIDGET_H
+#define LOGICSIMWIDGET_H
 
-#include <QWidget>                // QWidget 기본 클래스 포함
-#include <QVector>                // QVector 동적 배열 포함
-#include <QPushButton>            // 버튼 위젯 포함
-#include <QSpinBox>               // 숫자 입력 스핀박스 포함
-#include <QComboBox>              // 드롭다운 선택 박스 포함
-#include <QLabel>                 // 텍스트 라벨 포함
+#include <QWidget>
+#include <QVector>
+#include <QPushButton>
+#include <QSpinBox>
+#include <QComboBox>
+#include <QLabel>
 
-// ─────────────────────────────────────────────────
-//  파형을 직접 그려주는 커스텀 위젯
-// ─────────────────────────────────────────────────
-class WaveformWidget : public QWidget {   // QWidget을 상속받는 파형 표시 클래스
-    Q_OBJECT                              // Qt 시그널/슬롯 사용을 위한 매크로
+class WaveformWidget : public QWidget {
+    Q_OBJECT
 public:
-    explicit WaveformWidget(QWidget *parent = nullptr);  // 생성자, 부모 위젯 포인터 받음
+    explicit WaveformWidget(QWidget *parent = nullptr);
     void setData(const QVector<int>& a, const QVector<int>& b,
                  const QVector<int>& raw, const QVector<int>& out,
-                 int gateType, int delayTicks);          // 파형 데이터를 외부에서 받아 설정하는 함수
-    QSize sizeHint() const override { return QSize(640, 280); } // 위젯 기본 권장 크기 반환
+                 int gateType, int delayTicks);
+    QSize sizeHint() const override { return QSize(640, 280); }
 
 protected:
-    void paintEvent(QPaintEvent *event) override;  // 화면 그리기 이벤트 (Qt가 자동 호출)
+    void paintEvent(QPaintEvent *event) override;
 
 private:
-    QVector<int> sigA, sigB, sigRaw, sigOut; // 입력A, 입력B, 이상적출력, 지연된출력 신호 배열
-    int gateType   = 0;                      // 게이트 종류 (0=AND, 1=OR, 2=NOT)
-    int delayTicks = 0;                      // 전파지연 틱 수
-    static const int TICKS   = 40;           // 전체 시간 틱 수 (40칸)
-    static const int TICK_NS = 1;            // 1틱 = 1ns
+    QVector<int> sigA, sigB, sigRaw, sigOut;
+    int gateType    = 0;
+    int delayTicks  = 0;
+    static const int TICKS   = 40;
+    static const int TICK_NS = 1;
 };
 
-// ─────────────────────────────────────────────────
-//  시뮬레이션 컨트롤 + 파형 패널
-// ─────────────────────────────────────────────────
-class LogicSimWidget : public QWidget {    // 시뮬레이션 전체 UI를 담는 클래스
-    Q_OBJECT                               // Qt 시그널/슬롯 사용을 위한 매크로
-
+class LogicSimWidget : public QWidget {
+    Q_OBJECT
 public:
-    explicit LogicSimWidget(QWidget *parent = nullptr); // 생성자
+    explicit LogicSimWidget(QWidget *parent = nullptr);
 
 private slots:
-    void onSimulate();              // 시뮬레이션 실행 버튼 클릭 슬롯
-    void onToggleA(int tick);       // 입력A의 특정 틱 토글 슬롯
-    void onToggleB(int tick);       // 입력B의 특정 틱 토글 슬롯
-    void onGateChanged(int idx);    // 게이트 종류 변경 슬롯
+    void onSimulate();
+    void onToggleA(int tick);
+    void onToggleB(int tick);
+    void onGateChanged(int idx);
 
 private:
-    void buildUI();                 // UI 위젯들을 코드로 직접 생성하는 함수
-    void updateToggleButtons();     // 토글 버튼 색상/상태를 신호값에 맞게 갱신하는 함수
-    QVector<int> computeDelayed(const QVector<int>& raw, int delayTicks); // 전파지연 적용 계산 함수
+    void buildUI();
+    void updateToggleButtons();
+    QVector<int> computeDelayed(const QVector<int>& raw, int delayTicks);
 
-    static const int TICKS   = 40; // 전체 시간 틱 수 (WaveformWidget과 동일해야 함)
-    static const int TICK_NS = 1;  // 1틱 = 1ns
+    static const int TICKS   = 40;
+    static const int TICK_NS = 1;
 
-    QVector<int> sigA, sigB;       // 입력 신호 A, B 배열
-    int gateType = 0;              // 현재 선택된 게이트 종류 (0=AND, 1=OR, 2=NOT)
+    QVector<int> sigA, sigB;
+    int gateType = 0;
 
-    QComboBox      *gateCombo    = nullptr; // 게이트 선택 드롭다운
-    QSpinBox       *delaySpinBox = nullptr; // 전파지연 ns 입력 스핀박스
-    WaveformWidget *waveWidget   = nullptr; // 파형 표시 위젯 포인터
-    QWidget        *rowBGroup    = nullptr; // 입력B 행 (NOT 선택 시 숨김 처리용)
-    QVector<QPushButton*> btnA, btnB;       // 입력A, 입력B 토글 버튼 배열
+    QComboBox        *gateCombo    = nullptr;
+    QSpinBox         *delaySpinBox = nullptr;
+    WaveformWidget   *waveWidget   = nullptr;
+    QWidget          *rowBGroup    = nullptr;
+    QVector<QPushButton*> btnA, btnB;
 };
 
-#endif // LOGICSIMWIDGET_H         // 헤더 중복 방지 끝
+#endif // LOGICSIMWIDGET_H
